@@ -1,45 +1,50 @@
 package main
 
 import (
-	"os"
-	"net/http"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
-	"fmt"
+	"net/http"
+	"os"
 )
-var SLACK_TOKEN string
-var SLACK_USER string
+
+var slackToken string
+var slackUser string
 
 func init() {
-	SLACK_TOKEN = os.Getenv("SLACK_TOKEN")
-	SLACK_USER  = os.Getenv("SLACK_USER")
+	slackToken = os.Getenv("SLACK_TOKEN")
+	if slackToken == "" {
+		log.Printf("You must set a valid environment variable SLACK_TOKEN")
+		os.Exit(1)
+	}
+	slackUser = os.Getenv("SLACK_USER")
+	if slackUser == "" {
+		log.Printf("You must set a valid environment variable SLACK_USER")
+		os.Exit(1)
+	}
 }
 
-const SLACK_URL_GET_REMINDERS = "https://slack.com/api/reminders.list?token="
-
-type Reminder struct {
-	Id string `json:"id"`
-	Creator string `json:"creator"`
-	User string `json:"user"`
-	Text string `json:"text"`
-	Recurring bool `json:"recurring"`
-	Time uint32 `json:"time"`
+type reminder struct {
+	ID         string `json:"id"`
+	Creator    string `json:"creator"`
+	User       string `json:"user"`
+	Text       string `json:"text"`
+	Recurring  bool   `json:"recurring"`
+	Time       uint32 `json:"time"`
 	CompleteTS uint32 `josn:"complete_ts"`
-
 }
 
 type slackResponse struct {
-	Ok bool `json:"ok"`
-	Reminders []*Reminder `json:"reminders"`
+	Ok        bool        `json:"ok"`
+	Reminders []*reminder `json:"reminders"`
 }
 
+func getReminders() map[string]*reminder {
 
-func GetReminders() map[string]*Reminder {
+	reminders := make(map[string]*reminder)
 
-	reminders := make(map[string]*Reminder)
-
-	resp, err := http.Get(SLACK_URL_GET_REMINDERS + SLACK_TOKEN)
+	resp, err := http.Get("https://slack.com/api/reminders.list?token=" + slackToken)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,31 +61,30 @@ func GetReminders() map[string]*Reminder {
 	}
 
 	for _, rem := range response.Reminders {
-		if rem.User == SLACK_USER {
-			reminders[rem.Id] = rem
+		if rem.User == slackUser {
+			reminders[rem.ID] = rem
 		}
 	}
 	return reminders
 }
 
-func DeleteReminders(reminders map[string]*Reminder){
+func deleteReminders(reminders map[string]*reminder) {
 	type deleteResponse struct {
-		Ok bool `json:"ok"`
-		Error error `json:",omitempty"`
-		Id string `json:",omitempty"`
+		Ok    bool   `json:"ok"`
+		Error error  `json:",omitempty"`
+		ID    string `json:",omitempty"`
 	}
 
 	deleteCh := make(chan *deleteResponse, 5)
 
 	for _, rem := range reminders {
 		go func(id string) {
-			url := fmt.Sprintf("https://slack.com/api/reminders.delete?token=%s&reminder=%s",SLACK_TOKEN, id)
+			url := fmt.Sprintf("https://slack.com/api/reminders.delete?token=%s&reminder=%s", slackToken, id)
 			resp, err := http.Get(url)
 			defer resp.Body.Close()
-			content := &deleteResponse{}
+			content := &deleteResponse{Ok: false}
 			if err != nil {
 				content.Error = err
-				content.Ok = false
 			} else {
 				body, err := ioutil.ReadAll(resp.Body)
 				if err != nil {
@@ -90,17 +94,17 @@ func DeleteReminders(reminders map[string]*Reminder){
 					log.Fatal(err)
 				}
 			}
-			content.Id = id
+			content.ID = id
 			deleteCh <- content
 
-		}(rem.Id)
+		}(rem.ID)
 
 		select {
-		case content := <- deleteCh:
+		case content := <-deleteCh:
 			if content.Ok {
-				fmt.Printf("Reminder id: %s was successfully deleted\n", content.Id)
+				fmt.Printf("Reminder id: %s was successfully deleted\n", content.ID)
 			} else {
-				fmt.Errorf("Reminder id %s could not be deleted, error %s\n", content.Id, content.Error)
+				fmt.Printf("Reminder id %s could not be deleted, error %s\n", content.ID, content.Error)
 			}
 
 		}
@@ -108,8 +112,7 @@ func DeleteReminders(reminders map[string]*Reminder){
 }
 
 func main() {
-	reminders := GetReminders()
-	DeleteReminders(reminders)
+	reminders := getReminders()
+	deleteReminders(reminders)
 
 }
-
