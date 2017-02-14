@@ -1,6 +1,6 @@
 # SLACK Reminder eraser
 
-Inspirated by this blog [post](https://i.usedtocode.com/es/2017/02/11/como-remover-en-batch-todos-tus-recordatorios-en-slack/), This go lang script deletes all reminders asociated to an user.
+Inspirated by this blog [post](https://i.usedtocode.com/2017/02/11/how-to-batch-remove-all-your-reminders-from-slack/), This go lang script deletes all reminders asociated to an user.
 
 ## How to use
 
