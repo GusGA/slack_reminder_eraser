@@ -99,7 +99,8 @@ func deleteReminders(reminders map[string]*reminder) {
 
 		}(rem.ID)
 
-		select {
+	}
+	select {
 		case content := <-deleteCh:
 			if content.Ok {
 				fmt.Printf("Reminder id: %s was successfully deleted\n", content.ID)
@@ -108,7 +109,6 @@ func deleteReminders(reminders map[string]*reminder) {
 			}
 
 		}
-	}
 }
 
 func main() {
