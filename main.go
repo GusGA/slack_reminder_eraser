@@ -32,7 +32,7 @@ type reminder struct {
 	Text       string `json:"text"`
 	Recurring  bool   `json:"recurring"`
 	Time       uint32 `json:"time"`
-	CompleteTS uint32 `josn:"complete_ts"`
+	CompleteTS uint32 `json:"complete_ts"`
 }
 
 type slackResponse struct {
